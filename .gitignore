@@ -1,0 +1,27 @@
+# Build artifacts
+.make/
+.tools/
+core/target/
+bindings/wasm/pkg/
+bindings/wasm/target/
+bindings/ffi/include/
+
+# Rust
+Cargo.lock
+**/*.rs.bk
+
+# OS-specific
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
