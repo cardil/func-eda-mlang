@@ -1,0 +1,63 @@
+package eda:core@0.1.0;
+
+interface types {
+    record kafka-config {
+        broker: string,
+        topic: string,
+        group-id: string,
+    }
+    
+    enum error-category {
+        transient,
+        permanent,
+        unknown,
+    }
+    
+    record retry-decision {
+        should-retry: bool,
+        backoff-ms: u64,
+        send-to-dlq: bool,
+    }
+    
+    enum destination-type {
+        kafka,
+        rabbitmq,
+        http,
+    }
+    
+    record event-destination {
+        dest-type: destination-type,
+        cluster: string,
+        topic: string,
+    }
+}
+
+interface config {
+    use types.{kafka-config};
+    get-kafka-config: func() -> kafka-config;
+}
+
+interface retry {
+    use types.{error-category, retry-decision};
+    classify-error: func(error-message: string) -> error-category;
+    get-retry-decision: func(error-category: error-category, attempt: u32, max-attempts: u32) -> retry-decision;
+}
+
+interface routing {
+    use types.{event-destination};
+    route-event: func(event-type: string) -> event-destination;
+}
+
+interface telemetry {
+    record-event-received: func(event-type: string);
+    record-event-processed: func(event-type: string, success: bool, duration-ms: u64);
+    record-retry-attempt: func(attempt: u32, backoff-ms: u64);
+    get-event-count: func() -> u64;
+}
+
+world eda-core {
+    export config;
+    export retry;
+    export routing;
+    export telemetry;
+}
