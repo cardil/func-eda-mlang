@@ -65,17 +65,68 @@ impl RetryGuest for Component {
 
 #[cfg(target_arch = "wasm32")]
 impl RoutingGuest for Component {
-    fn route_event(event_type: String) -> EventDestination {
-        let dest = routing::route_event(&event_type);
-        EventDestination {
+    fn get_output_destination(event_json: String) -> OutputDestination {
+        let dest = routing::get_output_destination(&event_json);
+        OutputDestination {
             dest_type: match dest.dest_type {
                 routing::DestinationType::Kafka => DestinationType::Kafka,
                 routing::DestinationType::RabbitMQ => DestinationType::Rabbitmq,
                 routing::DestinationType::Http => DestinationType::Http,
+                routing::DestinationType::Discard => DestinationType::Discard,
             },
+            target: dest.target,
             cluster: dest.cluster,
-            topic: dest.topic,
         }
+    }
+
+    fn add_routing_rule(rule: RoutingRule) {
+        let rust_rule = routing::RoutingRule {
+            name: rule.name,
+            filter: rule.filter,
+            destination: routing::OutputDestination {
+                dest_type: match rule.destination.dest_type {
+                    DestinationType::Kafka => routing::DestinationType::Kafka,
+                    DestinationType::Rabbitmq => routing::DestinationType::RabbitMQ,
+                    DestinationType::Http => routing::DestinationType::Http,
+                    DestinationType::Discard => routing::DestinationType::Discard,
+                },
+                target: rule.destination.target,
+                cluster: rule.destination.cluster,
+            },
+        };
+        routing::add_routing_rule(rust_rule);
+    }
+
+    fn clear_routing_rules() {
+        routing::clear_routing_rules();
+    }
+
+    fn get_default_destination() -> OutputDestination {
+        let dest = routing::get_default_destination();
+        OutputDestination {
+            dest_type: match dest.dest_type {
+                routing::DestinationType::Kafka => DestinationType::Kafka,
+                routing::DestinationType::RabbitMQ => DestinationType::Rabbitmq,
+                routing::DestinationType::Http => DestinationType::Http,
+                routing::DestinationType::Discard => DestinationType::Discard,
+            },
+            target: dest.target,
+            cluster: dest.cluster,
+        }
+    }
+
+    fn set_default_destination(dest: OutputDestination) {
+        let rust_dest = routing::OutputDestination {
+            dest_type: match dest.dest_type {
+                DestinationType::Kafka => routing::DestinationType::Kafka,
+                DestinationType::Rabbitmq => routing::DestinationType::RabbitMQ,
+                DestinationType::Http => routing::DestinationType::Http,
+                DestinationType::Discard => routing::DestinationType::Discard,
+            },
+            target: dest.target,
+            cluster: dest.cluster,
+        };
+        routing::set_default_destination(rust_dest);
     }
 }
 

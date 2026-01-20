@@ -23,12 +23,24 @@ interface types {
         kafka,
         rabbitmq,
         http,
+        discard,
     }
     
-    record event-destination {
+    record output-destination {
         dest-type: destination-type,
-        cluster: string,
-        topic: string,
+        target: string,
+        cluster: option<string>,
+    }
+    
+    /// Filter expression following CloudEvents Subscriptions API format
+    /// Serialized as JSON to support nested filter structures
+    /// See: https://github.com/cloudevents/spec/blob/main/subscriptions/spec.md#324-filters
+    type filter-expression = string;
+    
+    record routing-rule {
+        name: string,
+        filter: filter-expression,
+        destination: output-destination,
     }
 }
 
@@ -44,8 +56,23 @@ interface retry {
 }
 
 interface routing {
-    use types.{event-destination};
-    route-event: func(event-type: string) -> event-destination;
+    use types.{output-destination, routing-rule};
+    
+    /// Evaluate routing rules against an event and return the destination
+    /// The event-json parameter contains the serialized CloudEvent
+    get-output-destination: func(event-json: string) -> output-destination;
+    
+    /// Add a routing rule
+    add-routing-rule: func(rule: routing-rule);
+    
+    /// Clear all routing rules
+    clear-routing-rules: func();
+    
+    /// Get the default destination used when no rule matches
+    get-default-destination: func() -> output-destination;
+    
+    /// Set the default destination for unmatched events
+    set-default-destination: func(dest: output-destination);
 }
 
 interface telemetry {

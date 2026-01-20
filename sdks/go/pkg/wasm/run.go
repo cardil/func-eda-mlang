@@ -40,7 +40,8 @@ func NewCoreFromFile(ctx context.Context, wasmPath string) (*Core, error) {
 
 // Run starts the EDA consumer using WASM core with the given handler
 // This is the main entry point for WASM-based functions
-func Run(handler sdk.HandlerFunc, opts ...sdk.Option) error {
+// Handler can be either SimpleHandler or OutputHandler
+func Run[H sdk.Handler](handler H, opts ...sdk.Option) error {
 	// Check if a core constructor is already provided
 	hasConstructor := false
 	for _, opt := range opts {

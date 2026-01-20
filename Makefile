@@ -211,31 +211,41 @@ sdk-go-test: sdk-go-build  ## Test Go SDK
 	cd $(SDK_GO_DIR) && CGO_ENABLED=1 go test -v ./...
 	@echo -e "$(GREEN)$(CHECK) Go SDK tests passed$(RESET)"
 
+# Build Go examples
 .PHONY: example-go-ffi
-example-go-ffi: sdk-go-build  ## Build Go FFI example (embedded libs, no external dependencies)
+example-go-ffi: sdk-go-build  ## Build Go FFI example
 	@echo -e "$(BLUE)$(GEAR) Building Go FFI example...$(RESET)"
-	cd $(SDK_GO_DIR)/examples/ffi-example && \
-		CGO_ENABLED=1 \
-		go build -o ffi-consumer .
-	@echo -e "$(GREEN)$(CHECK) Go FFI example built: $(SDK_GO_DIR)/examples/ffi-example/ffi-consumer$(RESET)"
+	cd $(SDK_GO_DIR)/examples/ffi-example && CGO_ENABLED=1 go build -o ffi-consumer .
+	@echo -e "$(GREEN)$(CHECK) Built: $(SDK_GO_DIR)/examples/ffi-example/ffi-consumer$(RESET)"
+
+.PHONY: example-go-ffi-output
+example-go-ffi-output: sdk-go-build  ## Build Go FFI output example
+	@echo -e "$(BLUE)$(GEAR) Building Go FFI output example...$(RESET)"
+	cd $(SDK_GO_DIR)/examples/ffi-output-example && CGO_ENABLED=1 go build -o ffi-output-consumer .
+	@echo -e "$(GREEN)$(CHECK) Built: $(SDK_GO_DIR)/examples/ffi-output-example/ffi-output-consumer$(RESET)"
 
 .PHONY: example-go-wasm
 example-go-wasm: sdk-go-build  ## Build Go WASM example
 	@echo -e "$(BLUE)$(GEAR) Building Go WASM example...$(RESET)"
 	cd $(SDK_GO_DIR)/examples/wasm-example && go build -o wasm-consumer .
-	@echo -e "$(GREEN)$(CHECK) Go WASM example built: $(SDK_GO_DIR)/examples/wasm-example/wasm-consumer$(RESET)"
+	@echo -e "$(GREEN)$(CHECK) Built: $(SDK_GO_DIR)/examples/wasm-example/wasm-consumer$(RESET)"
 
 .PHONY: run-go-ffi
-run-go-ffi: example-go-ffi  ## Run Go FFI example (self-contained, no LD_LIBRARY_PATH needed)
+run-go-ffi: example-go-ffi  ## Run Go FFI example
 	@echo -e "$(BLUE)$(ROCKET) Running Go FFI example...$(RESET)"
-	cd $(SDK_GO_DIR)/examples/ffi-example && ./ffi-consumer
+	cd $(SDK_GO_DIR)/examples/ffi-example && timeout 30 ./ffi-consumer
+
+.PHONY: run-go-ffi-output
+run-go-ffi-output: example-go-ffi-output  ## Run Go FFI output example
+	@echo -e "$(BLUE)$(ROCKET) Running Go FFI output example...$(RESET)"
+	cd $(SDK_GO_DIR)/examples/ffi-output-example && timeout 30 ./ffi-output-consumer
 
 .PHONY: run-go-wasm
 run-go-wasm: example-go-wasm  ## Run Go WASM example
 	@echo -e "$(BLUE)$(ROCKET) Running Go WASM example...$(RESET)"
 	cd $(SDK_GO_DIR)/examples/wasm-example && \
 		WASM_PATH=$(CURDIR)/$(BINDINGS_WASM_DIR)/target/wasm32-unknown-unknown/release/eda_wasm.wasm \
-		./wasm-consumer
+		timeout 30 ./wasm-consumer
 
 ##@ Build All
 
@@ -281,8 +291,9 @@ kafka-up:  ## Start Kafka/Redpanda infrastructure
 	@echo -e "$(GREEN)$(CHECK) Kafka/Redpanda started$(RESET)"
 	@echo -e "$(CYAN)Waiting for Redpanda to be healthy...$(RESET)"
 	@sleep 5
-	@echo -e "$(CYAN)Creating 'events' topic...$(RESET)"
+	@echo -e "$(CYAN)Creating topics...$(RESET)"
 	@$(CONTAINER_ENGINE) exec redpanda rpk topic create events --partitions 1 --replicas 1 2>/dev/null || echo -e "$(YELLOW)Topic 'events' may already exist$(RESET)"
+	@$(CONTAINER_ENGINE) exec redpanda rpk topic create processed-events --partitions 1 --replicas 1 2>/dev/null || echo -e "$(YELLOW)Topic 'processed-events' may already exist$(RESET)"
 	@echo -e "$(GREEN)$(CHECK) Redpanda Console available at http://localhost:8080$(RESET)"
 
 .PHONY: kafka-down

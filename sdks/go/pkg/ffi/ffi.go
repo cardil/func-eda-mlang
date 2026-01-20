@@ -64,11 +64,42 @@ func (c *Core) CalculateBackoff(attempt uint32) (uint64, error) {
 	return result, nil
 }
 
-// RouteEvent routes an event based on its type and returns handler ID
-func (c *Core) RouteEvent(eventType string) (uint32, error) {
-	cEventType := cString(eventType)
-	handlerID := edaRouteEvent(cEventType)
-	return handlerID, nil
+// GetOutputDestination routes an output event to its destination
+func (c *Core) GetOutputDestination(eventJSON string) (*sdk.OutputDestination, error) {
+	cEventJSON := cString(eventJSON)
+	cDest := edaGetOutputDestination(cEventJSON)
+	if cDest == nil {
+		return nil, fmt.Errorf("failed to get output destination")
+	}
+	defer edaFreeOutputDestination(cDest)
+
+	// Convert C destination to Go destination
+	dest := &sdk.OutputDestination{
+		Type: sdk.DestinationType(cDest.DestType),
+	}
+
+	// Get target string
+	if cDest.Target != nil {
+		dest.Target = goString(cDest.Target)
+	}
+
+	// Get cluster string (optional)
+	if cDest.Cluster != nil {
+		cluster := goString(cDest.Cluster)
+		dest.Cluster = &cluster
+	}
+
+	return dest, nil
+}
+
+// LoadRoutingConfig loads routing configuration from a YAML file
+func (c *Core) LoadRoutingConfig(filePath string) error {
+	cPath := cString(filePath)
+	success := edaLoadRoutingConfig(cPath)
+	if !success {
+		return fmt.Errorf("failed to load routing config from %s", filePath)
+	}
+	return nil
 }
 
 // Close releases resources (no-op for FFI implementation)

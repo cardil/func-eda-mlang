@@ -12,6 +12,7 @@ Cargo.lock
 
 # Go
 sdks/go/examples/*/ffi-consumer
+sdks/go/examples/*/ffi-output-consumer
 sdks/go/examples/*/wasm-consumer
 sdks/go/pkg/wasm/*.wasm
 sdks/go/pkg/wasm/gen/

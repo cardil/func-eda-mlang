@@ -1,7 +1,8 @@
 package main
 
 import (
-	"log"
+	"log/slog"
+	"os"
 
 	"github.com/openshift-knative/func-eda-mlang/sdks/go/pkg/wasm"
 )
@@ -9,6 +10,7 @@ import (
 func main() {
 	// Run the EDA consumer with WASM core
 	if err := wasm.Run(Handle); err != nil {
-		log.Fatalf("Error: %v", err)
+		slog.Error("Fatal error", "error", err)
+		os.Exit(1)
 	}
 }

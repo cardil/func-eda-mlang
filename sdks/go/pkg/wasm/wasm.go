@@ -3,6 +3,7 @@ package wasm
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/bytecodealliance/wasmtime-go/v40"
 	"github.com/openshift-knative/func-eda-mlang/sdks/go/pkg/sdk"
@@ -127,27 +128,48 @@ func (c *Core) CalculateBackoff(attempt uint32) (uint64, error) {
 	return 0, nil
 }
 
-// RouteEvent routes an event based on its type and returns handler ID
-// Calls the exported route-event function
-func (c *Core) RouteEvent(eventType string) (uint32, error) {
+// GetOutputDestination routes an output event to its destination
+// Calls the exported get-output-destination function
+func (c *Core) GetOutputDestination(eventJSON string) (*sdk.OutputDestination, error) {
 	// Try to get the exported function
-	fn := c.instance.GetFunc(c.store, "eda:core/routing@0.1.0#route-event")
+	fn := c.instance.GetFunc(c.store, "eda:core/routing@0.1.0#get-output-destination")
 	if fn == nil {
-		fn = c.instance.GetFunc(c.store, "route-event")
+		fn = c.instance.GetFunc(c.store, "get-output-destination")
 	}
 
 	if fn == nil {
-		// Return placeholder if function not found
-		return 0, nil
+		// Return default destination if function not found
+		cluster := "default"
+		return &sdk.OutputDestination{
+			Type:    sdk.DestinationKafka,
+			Target:  "events",
+			Cluster: &cluster,
+		}, nil
 	}
 
 	// TODO: Call the function with proper Component Model ABI
 	// This requires:
-	// 1. Marshaling string to Component Model format
-	// 2. Calling route-event
-	// 3. Unmarshaling the result
+	// 1. Marshaling eventJSON string to Component Model format
+	// 2. Calling get-output-destination
+	// 3. Unmarshaling the OutputDestination result
+	_ = types.OutputDestination{} // Type reference
 
-	return 0, nil
+	// Return default for now
+	cluster := "default"
+	return &sdk.OutputDestination{
+		Type:    sdk.DestinationKafka,
+		Target:  "events",
+		Cluster: &cluster,
+	}, nil
+}
+
+// LoadRoutingConfig loads routing configuration from a YAML file
+// Note: WASM implementation doesn't support file I/O
+func (c *Core) LoadRoutingConfig(filePath string) error {
+	// WASM components don't have direct file system access
+	// Routing configuration would need to be passed differently (e.g., via imports)
+	slog.Warn("WASM core does not support loading routing config from files", "file", filePath)
+	return nil
 }
 
 // Close releases resources held by the WASM runtime

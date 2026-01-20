@@ -3,7 +3,7 @@ package sdk
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -11,12 +11,10 @@ import (
 
 // Run starts the EDA consumer with the given core and handler
 // This is the main entry point that users call from their main()
-func Run(core Core, handler HandlerFunc, opts ...Option) error {
+// Handler can be either SimpleHandler or OutputHandler
+func Run[H Handler](core Core, handler H, opts ...Option) error {
 	if core == nil {
 		return fmt.Errorf("core cannot be nil")
-	}
-	if handler == nil {
-		return fmt.Errorf("handler cannot be nil")
 	}
 
 	// Apply options
@@ -38,16 +36,16 @@ func Run(core Core, handler HandlerFunc, opts ...Option) error {
 
 	go func() {
 		<-sigChan
-		log.Println("Shutting down...")
+		slog.Info("Shutting down...")
 		cancel()
 	}()
 
 	// Start consuming
-	log.Println("Starting EDA consumer...")
+	slog.Info("Starting EDA consumer...")
 	if err := consumer.Start(ctx); err != nil && err != context.Canceled {
 		return fmt.Errorf("consumer error: %w", err)
 	}
 
-	log.Println("Consumer stopped")
+	slog.Info("Consumer stopped")
 	return nil
 }

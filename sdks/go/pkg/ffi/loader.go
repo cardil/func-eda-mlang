@@ -11,18 +11,27 @@ import (
 	"github.com/ebitengine/purego"
 )
 
+// COutputDestination matches the C struct from Rust FFI
+type COutputDestination struct {
+	DestType uint32
+	Target   *byte
+	Cluster  *byte
+}
+
 var (
 	// Library handle
 	libHandle uintptr
 
 	// Function pointers
-	edaGetKafkaBroker   func() *byte
-	edaGetKafkaTopic    func() *byte
-	edaGetKafkaGroup    func() *byte
-	edaFreeString       func(*byte)
-	edaShouldRetry      func(*byte, uint32) int32
-	edaCalculateBackoff func(uint32) uint64
-	edaRouteEvent       func(*byte) uint32
+	edaGetKafkaBroker        func() *byte
+	edaGetKafkaTopic         func() *byte
+	edaGetKafkaGroup         func() *byte
+	edaFreeString            func(*byte)
+	edaShouldRetry           func(*byte, uint32) int32
+	edaCalculateBackoff      func(uint32) uint64
+	edaGetOutputDestination  func(*byte) *COutputDestination
+	edaFreeOutputDestination func(*COutputDestination)
+	edaLoadRoutingConfig     func(*byte) bool
 
 	// Ensure library is loaded only once
 	loadOnce sync.Once
@@ -115,8 +124,14 @@ func registerFunctions() error {
 	// Register eda_calculate_backoff
 	purego.RegisterLibFunc(&edaCalculateBackoff, libHandle, "eda_calculate_backoff")
 
-	// Register eda_route_event
-	purego.RegisterLibFunc(&edaRouteEvent, libHandle, "eda_route_event")
+	// Register eda_get_output_destination
+	purego.RegisterLibFunc(&edaGetOutputDestination, libHandle, "eda_get_output_destination")
+
+	// Register eda_free_output_destination
+	purego.RegisterLibFunc(&edaFreeOutputDestination, libHandle, "eda_free_output_destination")
+
+	// Register eda_load_routing_config
+	purego.RegisterLibFunc(&edaLoadRoutingConfig, libHandle, "eda_load_routing_config")
 
 	return nil
 }

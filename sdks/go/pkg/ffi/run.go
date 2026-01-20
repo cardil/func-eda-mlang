@@ -11,7 +11,8 @@ var DefaultCoreConstructor sdk.CoreConstructor = func() (sdk.Core, error) {
 
 // Run starts the EDA consumer using FFI core with the given handler
 // This is the main entry point for FFI-based functions
-func Run(handler sdk.HandlerFunc, opts ...sdk.Option) error {
+// Handler can be either SimpleHandler or OutputHandler signature
+func Run[H sdk.Handler](handler H, opts ...sdk.Option) error {
 	// Check if a core constructor is already provided
 	hasConstructor := false
 	for _, opt := range opts {
