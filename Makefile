@@ -38,6 +38,7 @@ CORE_DIR := core
 BINDINGS_FFI_DIR := bindings/ffi
 BINDINGS_WASM_DIR := bindings/wasm
 SDK_GO_DIR := sdks/go
+SDK_PYTHON_DIR := sdks/python
 
 # Local tool executables
 CBINDGEN := $(TOOLS_BIN)/cbindgen
@@ -247,14 +248,73 @@ run-go-wasm: example-go-wasm  ## Run Go WASM example
 		WASM_PATH=$(CURDIR)/$(BINDINGS_WASM_DIR)/target/wasm32-unknown-unknown/release/eda_wasm.wasm \
 		timeout 30 ./wasm-consumer
 
+##@ Python SDK
+
+PYTHON_VENV := $(SDK_PYTHON_DIR)/.venv
+PYTHON := $(CURDIR)/$(PYTHON_VENV)/bin/python
+PIP := $(CURDIR)/$(PYTHON_VENV)/bin/pip
+
+$(PYTHON_VENV):
+	@echo -e "$(BLUE)$(GEAR) Creating Python virtual environment...$(RESET)"
+	python3 -m venv $(PYTHON_VENV)
+	@echo -e "$(GREEN)$(CHECK) Virtual environment created$(RESET)"
+
+.PHONY: sdk-python-embed-libs
+sdk-python-embed-libs: core-build-ffi core-headers  ## Copy FFI libraries and headers to Python SDK (current platform)
+	@echo -e "$(BLUE)$(GEAR) Copying FFI library and headers to Python SDK...$(RESET)"
+	@mkdir -p $(SDK_PYTHON_DIR)/eda_sdk/ffi/libs/linux_amd64
+	@mkdir -p $(SDK_PYTHON_DIR)/eda_sdk/ffi/libs/linux_arm64
+	@mkdir -p $(SDK_PYTHON_DIR)/eda_sdk/ffi/libs/darwin_amd64
+	@mkdir -p $(SDK_PYTHON_DIR)/eda_sdk/ffi/libs/darwin_arm64
+	@mkdir -p $(SDK_PYTHON_DIR)/eda_sdk/ffi/libs/windows_amd64
+	@mkdir -p $(SDK_PYTHON_DIR)/eda_sdk/ffi/include
+	@if [ -f $(CORE_DIR)/target/release/libeda_core.so ]; then \
+		cp $(CORE_DIR)/target/release/libeda_core.so $(SDK_PYTHON_DIR)/eda_sdk/ffi/libs/linux_amd64/; \
+		echo -e "$(GREEN)$(CHECK) Copied libeda_core.so to linux_amd64$(RESET)"; \
+	fi
+	@if [ -f $(CORE_DIR)/target/release/libeda_core.dylib ]; then \
+		cp $(CORE_DIR)/target/release/libeda_core.dylib $(SDK_PYTHON_DIR)/eda_sdk/ffi/libs/darwin_amd64/; \
+		echo -e "$(GREEN)$(CHECK) Copied libeda_core.dylib to darwin_amd64$(RESET)"; \
+	fi
+	@if [ -f $(CORE_DIR)/target/release/eda_core.dll ]; then \
+		cp $(CORE_DIR)/target/release/eda_core.dll $(SDK_PYTHON_DIR)/eda_sdk/ffi/libs/windows_amd64/; \
+		echo -e "$(GREEN)$(CHECK) Copied eda_core.dll to windows_amd64$(RESET)"; \
+	fi
+	@cp $(C_HEADER) $(SDK_PYTHON_DIR)/eda_sdk/ffi/include/
+	@echo -e "$(GREEN)$(CHECK) Copied C header to Python SDK$(RESET)"
+
+.PHONY: sdk-python-deps
+sdk-python-deps: $(PYTHON_VENV) sdk-python-embed-libs  ## Install Python SDK in development mode
+	@echo -e "$(BLUE)$(GEAR) Installing Python SDK in development mode...$(RESET)"
+	cd $(SDK_PYTHON_DIR) && $(PIP) install -e .
+	@echo -e "$(GREEN)$(CHECK) Python SDK installed$(RESET)"
+
+.PHONY: sdk-python-build
+sdk-python-build: $(PYTHON_VENV) sdk-python-embed-libs  ## Build Python SDK package
+	@echo -e "$(BLUE)$(GEAR) Building Python SDK package...$(RESET)"
+	cd $(SDK_PYTHON_DIR) && $(PIP) install build && $(PYTHON) -m build
+	@echo -e "$(GREEN)$(CHECK) Python SDK package built$(RESET)"
+
+.PHONY: example-python-ffi
+example-python-ffi: sdk-python-deps  ## Run Python FFI example
+	@echo -e "$(BLUE)$(ROCKET) Running Python FFI example...$(RESET)"
+	cd $(SDK_PYTHON_DIR)/examples && timeout 30 $(PYTHON) ffi_example.py || true
+	@echo -e "$(GREEN)$(CHECK) Python FFI example completed$(RESET)"
+
+.PHONY: example-python-ffi-output
+example-python-ffi-output: sdk-python-deps  ## Run Python FFI output example
+	@echo -e "$(BLUE)$(ROCKET) Running Python FFI output example...$(RESET)"
+	cd $(SDK_PYTHON_DIR)/examples && timeout 30 $(PYTHON) ffi_output_example.py || true
+	@echo -e "$(GREEN)$(CHECK) Python FFI output example completed$(RESET)"
+
 ##@ Build All
 
 .PHONY: all
-all: core-build-ffi core-build-wasm core-headers sdk-go-build examples  ## Build everything
+all: core-build-ffi core-build-wasm core-headers sdk-go-build sdk-python-deps examples  ## Build everything
 	@echo -e "$(GREEN)$(ROCKET) All builds complete$(RESET)"
 
 .PHONY: examples
-examples: example-go-ffi example-go-wasm  ## Build all examples
+examples: example-go-ffi example-go-wasm sdk-python-deps  ## Build all examples
 	@echo -e "$(GREEN)$(ROCKET) All examples built$(RESET)"
 
 ##@ Development
@@ -268,10 +328,19 @@ clean:  ## Clean build artifacts and caches
 	@rm -rf $(BINDINGS_FFI_DIR)/include
 	@cd $(SDK_GO_DIR) && go clean
 	@rm -f $(SDK_GO_DIR)/examples/ffi-example/ffi-consumer
+	@rm -f $(SDK_GO_DIR)/examples/ffi-output-example/ffi-output-consumer
 	@rm -f $(SDK_GO_DIR)/examples/wasm-example/wasm-consumer
 	@rm -f $(SDK_GO_DIR)/pkg/wasm/*.wasm
 	@rm -rf $(SDK_GO_DIR)/pkg/wasm/gen
 	@rm -rf $(SDK_GO_DIR)/pkg/ffi/libs
+	@rm -rf $(SDK_PYTHON_DIR)/.venv
+	@rm -rf $(SDK_PYTHON_DIR)/build
+	@rm -rf $(SDK_PYTHON_DIR)/dist
+	@rm -rf $(SDK_PYTHON_DIR)/*.egg-info
+	@rm -rf $(SDK_PYTHON_DIR)/eda_sdk/ffi/libs
+	@rm -rf $(SDK_PYTHON_DIR)/eda_sdk/ffi/include
+	@find $(SDK_PYTHON_DIR) -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+	@find $(SDK_PYTHON_DIR) -type f -name "*.pyc" -delete 2>/dev/null || true
 	@echo -e "$(GREEN)$(CHECK) Build artifacts cleaned$(RESET)"
 
 .PHONY: distclean
