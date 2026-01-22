@@ -62,6 +62,7 @@ pub fn should_retry(_error: &str, _attempt: u32) -> bool {
 
 // FFI exports
 
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[no_mangle]
 pub extern "C" fn eda_classify_error(error: *const c_char) -> u32 {
     if error.is_null() {
@@ -95,7 +96,7 @@ pub extern "C" fn eda_get_retry_decision(
     };
 
     let decision = get_retry_decision(category, attempt, max_attempts);
-    
+
     let mut result: u64 = decision.backoff_ms & 0xFFFFFFFF;
     if decision.should_retry {
         result |= 1u64 << 32;
@@ -103,10 +104,11 @@ pub extern "C" fn eda_get_retry_decision(
     if decision.send_to_dlq {
         result |= 1u64 << 33;
     }
-    
+
     result
 }
 
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[no_mangle]
 pub extern "C" fn eda_should_retry(error: *const c_char, attempt: u32) -> i32 {
     if error.is_null() {

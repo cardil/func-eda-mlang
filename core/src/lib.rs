@@ -18,13 +18,18 @@ pub mod wit_bindings;
 
 // Re-export main types for convenience
 pub use config::{get_kafka_config, KafkaConfig};
-pub use retry::{calculate_backoff, classify_error, get_retry_decision, should_retry, ErrorCategory, RetryDecision};
-pub use routing::{
-    get_output_destination, add_routing_rule, clear_routing_rules,
-    get_default_destination, set_default_destination, load_routing_config,
-    DestinationType, OutputDestination, RoutingRule, FilterExpression
+pub use retry::{
+    calculate_backoff, classify_error, get_retry_decision, should_retry, ErrorCategory,
+    RetryDecision,
 };
-pub use telemetry::{get_event_count, record_event_processed, record_event_received, record_retry_attempt};
+pub use routing::{
+    add_routing_rule, clear_routing_rules, get_default_destination, get_output_destination,
+    load_routing_config, set_default_destination, DestinationType, FilterExpression,
+    OutputDestination, RoutingRule,
+};
+pub use telemetry::{
+    get_event_count, record_event_processed, record_event_received, record_retry_attempt,
+};
 
 #[cfg(test)]
 mod tests {
@@ -59,7 +64,7 @@ mod tests {
             target: "events".to_string(),
             cluster: Some("default".to_string()),
         });
-        
+
         let event_json = r#"{"specversion":"1.0","type":"user.created","source":"test","id":"1"}"#;
         let dest = get_output_destination(event_json);
         assert_eq!(dest.dest_type, DestinationType::Kafka);

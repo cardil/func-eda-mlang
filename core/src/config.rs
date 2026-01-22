@@ -59,6 +59,7 @@ pub extern "C" fn eda_get_kafka_group() -> *mut c_char {
 }
 
 /// FFI-compatible function to free C strings returned by this library
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[no_mangle]
 pub extern "C" fn eda_free_string(s: *mut c_char) {
     if !s.is_null() {

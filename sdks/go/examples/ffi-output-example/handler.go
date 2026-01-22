@@ -15,9 +15,9 @@ var Handle sdk.OutputHandler = func(event cloudevents.Event) (*cloudevents.Event
 	fmt.Printf("   Type: %s\n", event.Type())
 	fmt.Printf("   Source: %s\n", event.Source())
 
-	// Only process events of type "kafka.message"
-	// Produce a transformed event for other types
-	if event.Type() != "kafka.message" {
+	// Only process events of type "eda-mlang-test"
+	// Return nil for other types (no output event)
+	if event.Type() != "eda-mlang-test" {
 		return nil, nil
 	}
 

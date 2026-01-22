@@ -13,7 +13,10 @@ wit_bindgen::generate!({
 use crate::{config, retry, routing, telemetry};
 
 #[cfg(target_arch = "wasm32")]
-use exports::eda::core::{config::Guest as ConfigGuest, retry::Guest as RetryGuest, routing::Guest as RoutingGuest, telemetry::Guest as TelemetryGuest};
+use exports::eda::core::{
+    config::Guest as ConfigGuest, retry::Guest as RetryGuest, routing::Guest as RoutingGuest,
+    telemetry::Guest as TelemetryGuest,
+};
 
 #[cfg(target_arch = "wasm32")]
 use eda::core::types::*;

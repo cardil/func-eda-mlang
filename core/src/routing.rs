@@ -1,10 +1,10 @@
-use std::ffi::CStr;
-use std::os::raw::c_char;
-use std::sync::RwLock;
-use std::fs;
-use cloudevents::{Event, AttributesReader};
+use cloudevents::{AttributesReader, Event};
 use serde::Deserialize;
 use serde_json::Value;
+use std::ffi::CStr;
+use std::fs;
+use std::os::raw::c_char;
+use std::sync::RwLock;
 
 // TODO: Add CESQL (CloudEvents SQL) support for advanced filtering
 // The CloudEvents Rust SDK (v0.9) doesn't yet support CESQL filtering.
@@ -188,16 +188,16 @@ pub fn get_output_destination(event_json: &str) -> OutputDestination {
         Ok(e) => e,
         Err(_) => return get_default_destination(),
     };
-    
+
     let rules = ROUTING_RULES.read().unwrap();
-    
+
     // Evaluate each rule's filter against the event
     for rule in rules.iter() {
         if evaluate_filter(&event, &rule.filter) {
             return rule.destination.clone();
         }
     }
-    
+
     // No matching rule, return default destination
     get_default_destination()
 }
@@ -266,11 +266,11 @@ pub fn load_routing_config(file_path: &str) -> Result<(), String> {
     // Read the YAML file
     let yaml_content = fs::read_to_string(file_path)
         .map_err(|e| format!("Failed to read routing config file: {}", e))?;
-    
+
     // Parse YAML
     let config: RoutingConfig = serde_yaml::from_str(&yaml_content)
         .map_err(|e| format!("Failed to parse routing config YAML: {}", e))?;
-    
+
     // Set default destination if provided
     if let Some(default_config) = config.routing.default {
         let dest_type = parse_destination_type(&default_config.dest_type);
@@ -281,7 +281,7 @@ pub fn load_routing_config(file_path: &str) -> Result<(), String> {
         };
         set_default_destination(default_dest);
     }
-    
+
     // Add routing rules if provided
     if let Some(rules) = config.routing.rules {
         for rule_config in rules {
@@ -291,17 +291,17 @@ pub fn load_routing_config(file_path: &str) -> Result<(), String> {
                 target: rule_config.destination.target,
                 cluster: rule_config.destination.cluster,
             };
-            
+
             let rule = RoutingRule {
                 name: rule_config.name,
                 filter: rule_config.filter.to_string(),
                 destination,
             };
-            
+
             add_routing_rule(rule);
         }
     }
-    
+
     Ok(())
 }
 
@@ -327,6 +327,7 @@ pub struct COutputDestination {
 
 use std::ffi::CString;
 
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[no_mangle]
 pub extern "C" fn eda_get_output_destination(event_json: *const c_char) -> *mut COutputDestination {
     if event_json.is_null() {
@@ -341,19 +342,20 @@ pub extern "C" fn eda_get_output_destination(event_json: *const c_char) -> *mut 
     };
 
     let dest = get_output_destination(json_str);
-    
+
     let dest_type = match dest.dest_type {
         DestinationType::Kafka => 0,
         DestinationType::RabbitMQ => 1,
         DestinationType::Http => 2,
         DestinationType::Discard => 3,
     };
-    
+
     let target = CString::new(dest.target).unwrap().into_raw();
-    let cluster = dest.cluster
+    let cluster = dest
+        .cluster
         .map(|c| CString::new(c).unwrap().into_raw())
         .unwrap_or(std::ptr::null_mut());
-    
+
     Box::into_raw(Box::new(COutputDestination {
         dest_type,
         target,
@@ -361,12 +363,13 @@ pub extern "C" fn eda_get_output_destination(event_json: *const c_char) -> *mut 
     }))
 }
 
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[no_mangle]
 pub extern "C" fn eda_free_output_destination(dest: *mut COutputDestination) {
     if dest.is_null() {
         return;
     }
-    
+
     unsafe {
         let dest_box = Box::from_raw(dest);
         if !dest_box.target.is_null() {
@@ -379,6 +382,7 @@ pub extern "C" fn eda_free_output_destination(dest: *mut COutputDestination) {
 }
 
 /// Load routing configuration from a YAML file via FFI
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[no_mangle]
 pub extern "C" fn eda_load_routing_config(file_path: *const c_char) -> bool {
     if file_path.is_null() {
@@ -429,7 +433,9 @@ mod tests {
     #[test]
     fn test_default_destination() {
         reset_routing_state();
-        let result = get_output_destination(r#"{"specversion":"1.0","type":"test","source":"test","id":"1"}"#);
+        let result = get_output_destination(
+            r#"{"specversion":"1.0","type":"test","source":"test","id":"1"}"#,
+        );
         assert_eq!(result.dest_type, DestinationType::Kafka);
         assert_eq!(result.target, "events");
         assert_eq!(result.cluster, Some("default".to_string()));
@@ -444,7 +450,7 @@ mod tests {
             cluster: None,
         };
         set_default_destination(custom_dest);
-        
+
         let result = get_default_destination();
         assert_eq!(result.dest_type, DestinationType::Http);
         assert_eq!(result.target, "https://example.com/webhook");
@@ -454,7 +460,7 @@ mod tests {
     #[test]
     fn test_exact_filter_match() {
         reset_routing_state();
-        
+
         let rule = RoutingRule {
             name: "test-rule".to_string(),
             filter: r#"{"exact":{"type":"com.example.test"}}"#.to_string(),
@@ -464,10 +470,11 @@ mod tests {
                 cluster: Some("test-cluster".to_string()),
             },
         };
-        
+
         add_routing_rule(rule);
-        
-        let event_json = r#"{"specversion":"1.0","type":"com.example.test","source":"test","id":"1"}"#;
+
+        let event_json =
+            r#"{"specversion":"1.0","type":"com.example.test","source":"test","id":"1"}"#;
         let result = get_output_destination(event_json);
         assert_eq!(result.dest_type, DestinationType::Kafka);
         assert_eq!(result.target, "test-topic");
@@ -476,7 +483,7 @@ mod tests {
     #[test]
     fn test_prefix_filter_match() {
         reset_routing_state();
-        
+
         let rule = RoutingRule {
             name: "prefix-rule".to_string(),
             filter: r#"{"prefix":{"type":"com.example."}}"#.to_string(),
@@ -486,10 +493,11 @@ mod tests {
                 cluster: Some("default".to_string()),
             },
         };
-        
+
         add_routing_rule(rule);
-        
-        let event_json = r#"{"specversion":"1.0","type":"com.example.order.created","source":"test","id":"1"}"#;
+
+        let event_json =
+            r#"{"specversion":"1.0","type":"com.example.order.created","source":"test","id":"1"}"#;
         let result = get_output_destination(event_json);
         assert_eq!(result.dest_type, DestinationType::Kafka);
         assert_eq!(result.target, "example-events");
@@ -498,7 +506,7 @@ mod tests {
     #[test]
     fn test_suffix_filter_match() {
         reset_routing_state();
-        
+
         let rule = RoutingRule {
             name: "suffix-rule".to_string(),
             filter: r#"{"suffix":{"type":".created"}}"#.to_string(),
@@ -508,9 +516,9 @@ mod tests {
                 cluster: Some("default".to_string()),
             },
         };
-        
+
         add_routing_rule(rule);
-        
+
         let event_json = r#"{"specversion":"1.0","type":"order.created","source":"test","id":"1"}"#;
         let result = get_output_destination(event_json);
         assert_eq!(result.dest_type, DestinationType::Kafka);
@@ -520,7 +528,7 @@ mod tests {
     #[test]
     fn test_no_match_returns_default() {
         reset_routing_state();
-        
+
         let rule = RoutingRule {
             name: "specific-rule".to_string(),
             filter: r#"{"exact":{"type":"specific.type"}}"#.to_string(),
@@ -530,10 +538,11 @@ mod tests {
                 cluster: None,
             },
         };
-        
+
         add_routing_rule(rule);
-        
-        let event_json = r#"{"specversion":"1.0","type":"different.type","source":"test","id":"1"}"#;
+
+        let event_json =
+            r#"{"specversion":"1.0","type":"different.type","source":"test","id":"1"}"#;
         let result = get_output_destination(event_json);
         // Should return default destination
         assert_eq!(result.dest_type, DestinationType::Kafka);

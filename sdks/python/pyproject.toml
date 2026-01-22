@@ -34,6 +34,7 @@ dev = [
     "black>=23.0.0",
     "mypy>=1.5.0",
     "ruff>=0.1.0",
+    "types-cffi>=1.17.0",
 ]
 wasm = [
     "wasmtime>=16.0.0",

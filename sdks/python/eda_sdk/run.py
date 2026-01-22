@@ -2,11 +2,10 @@
 
 import inspect
 import logging
-import os
 import signal
 import sys
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Optional
 
 from .consumer import Consumer, Handler
 from .core import Core

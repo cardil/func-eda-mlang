@@ -2,11 +2,11 @@
 
 import json
 import logging
-import time
 from typing import Callable, Optional, Union
 
-from cloudevents.http import CloudEvent, from_json
-from confluent_kafka import Consumer as KafkaConsumer, KafkaError, KafkaException, Producer
+from cloudevents.http import CloudEvent
+from cloudevents.kafka import KafkaMessage, from_binary, from_structured
+from confluent_kafka import Consumer as KafkaConsumer, KafkaError, KafkaException, Message, Producer
 
 from .core import Core
 from .types import DestinationType
@@ -106,7 +106,8 @@ class Consumer:
                     continue
 
                 if msg.error():
-                    if msg.error().code() == KafkaError._PARTITION_EOF:
+                    error = msg.error()
+                    if error is not None and error.code() == KafkaError._PARTITION_EOF:  # type: ignore[attr-defined]
                         # End of partition, not an error
                         continue
                     else:
@@ -136,7 +137,7 @@ class Consumer:
                         if should_retry:
                             backoff = self.core.calculate_backoff(1)
                             logger.warning(
-                                f"Would retry after backoff (not implemented in PoC)",
+                                "Would retry after backoff (not implemented in PoC)",
                                 extra={"backoff_ms": backoff},
                             )
                     except Exception as retry_err:
@@ -147,8 +148,12 @@ class Consumer:
         finally:
             self.close()
 
-    def _parse_cloud_event(self, msg) -> Optional[CloudEvent]:
+    def _parse_cloud_event(self, msg: Message) -> Optional[CloudEvent]:
         """Convert Kafka message to CloudEvent.
+
+        Tries multiple parsing strategies in order:
+        1. Structured mode: CloudEvent attributes in Kafka headers, data in body
+        2. Binary mode: Full CloudEvent as JSON in Kafka value (both CE fields and data)
 
         Args:
             msg: Kafka message.
@@ -156,26 +161,39 @@ class Consumer:
         Returns:
             CloudEvent or None if parsing fails.
         """
+        value = msg.value()
+        if value is None:
+            logger.warning("Received message with None value, skipping")
+            return None
+
+        # Convert confluent_kafka Message to cloudevents KafkaMessage
+        headers: dict[str, bytes] = {}
+        msg_headers = msg.headers()
+        if msg_headers is not None:
+            for key, val in msg_headers:  # type: ignore[misc]
+                if val is not None:
+                    # Ensure val is bytes
+                    if isinstance(val, str):
+                        headers[key] = val.encode("utf-8")
+                    elif isinstance(val, bytes):
+                        headers[key] = val
+
+        kafka_msg = KafkaMessage(headers=headers, key=msg.key(), value=value)
+
+        # Try 1: Structured mode (CE attributes in headers, data in body)
         try:
-            # Try to parse as structured CloudEvent (JSON)
-            event = from_json(msg.value())
+            event = from_structured(kafka_msg)
             return event
         except Exception:
-            # Fallback: create simple CloudEvent from message
-            try:
-                event = CloudEvent(
-                    {
-                        "specversion": "1.0",
-                        "type": "kafka.message",
-                        "source": "kafka",
-                        "id": msg.key().decode("utf-8") if msg.key() else "unknown",
-                    },
-                    data=msg.value(),
-                )
-                return event
-            except Exception as e:
-                logger.error(f"Error parsing CloudEvent: {e}")
-                return None
+            pass  # Not structured mode, try next method
+
+        # Try 2: Binary mode (full CloudEvent JSON in body)
+        try:
+            event = from_binary(kafka_msg)
+            return event
+        except Exception as e:
+            logger.warning(f"Failed to parse CloudEvent: {e}")
+            return None
 
     def _invoke_handler(self, event: CloudEvent) -> None:
         """Call the user's handler function and handle output events.

@@ -9,7 +9,9 @@ import (
 	"reflect"
 	"time"
 
+	kafkabinding "github.com/cloudevents/sdk-go/protocol/kafka_confluent/v2"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
+	"github.com/cloudevents/sdk-go/v2/binding"
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 )
 
@@ -108,25 +110,8 @@ func NewConsumer(core Core, handler interface{}) (*Consumer, error) {
 		logger.Info("Kafka producer initialized for output events")
 	}
 
-	// Subscribe to topic with rebalance callback that starts from beginning
-	rebalanceCb := func(c *kafka.Consumer, event kafka.Event) error {
-		switch e := event.(type) {
-		case kafka.AssignedPartitions:
-			logger.Info("Partitions assigned", "partitions", e.Partitions)
-			// Set offset to beginning before assigning to replay all messages
-			for i := range e.Partitions {
-				e.Partitions[i].Offset = kafka.OffsetBeginning
-			}
-			logger.Info("Starting from beginning for all partitions")
-			return c.Assign(e.Partitions)
-		case kafka.RevokedPartitions:
-			logger.Info("Partitions revoked", "partitions", e.Partitions)
-			return c.Unassign()
-		}
-		return nil
-	}
-
-	if err := kafkaConsumer.Subscribe(config.Topic, rebalanceCb); err != nil {
+	// Subscribe to topic
+	if err := kafkaConsumer.Subscribe(config.Topic, nil); err != nil {
 		kafkaConsumer.Close()
 		if kafkaProducer != nil {
 			kafkaProducer.Close()
@@ -311,23 +296,26 @@ func (c *Consumer) publishToKafka(event *cloudevents.Event, dest *OutputDestinat
 }
 
 // parseCloudEvent converts Kafka message to CloudEvent
+// Tries multiple parsing strategies in order:
+// 1. Structured mode: CloudEvent attributes in Kafka headers, data in body
+// 2. Binary mode: Full CloudEvent as JSON in Kafka value (both CE fields and data)
 func (c *Consumer) parseCloudEvent(msg *kafka.Message) (*cloudevents.Event, error) {
-	event := cloudevents.NewEvent()
+	// Try 1: Use CloudEvents Kafka binding to parse structured/binary modes
+	kafkaMsg := kafkabinding.NewMessage(msg)
+	event, err := binding.ToEvent(context.Background(), kafkaMsg)
+	if err == nil {
+		// Successfully parsed using CloudEvents binding
+		return event, nil
+	}
 
-	// Try to parse as structured CloudEvent (JSON)
+	// Try 2: Binary mode (full CloudEvent JSON in body) - fallback for plain JSON
+	event = &cloudevents.Event{}
 	if err := event.UnmarshalJSON(msg.Value); err == nil {
-		return &event, nil
+		return event, nil
 	}
 
-	// Fallback: create simple CloudEvent from message
-	event.SetID(string(msg.Key))
-	event.SetSource("kafka")
-	event.SetType("kafka.message")
-	if err := event.SetData(cloudevents.ApplicationJSON, msg.Value); err != nil {
-		return nil, fmt.Errorf("failed to set event data: %w", err)
-	}
-
-	return &event, nil
+	// Both methods failed
+	return nil, fmt.Errorf("failed to parse CloudEvent from Kafka message")
 }
 
 // Close releases resources

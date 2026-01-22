@@ -1,8 +1,7 @@
 """FFI-based Core implementation using cffi."""
 
-from typing import Optional
+from typing import Any, Optional
 
-from ..core import Core
 from ..types import DestinationType, KafkaConfig, OutputDestination
 from .loader import ffi, load_library
 
@@ -16,7 +15,7 @@ class FFICore:
         Raises:
             RuntimeError: If library loading fails.
         """
-        self._lib = load_library()
+        self._lib: Any = load_library()
 
     def get_kafka_config(self) -> KafkaConfig:
         """Retrieve the Kafka connection configuration.
@@ -31,21 +30,21 @@ class FFICore:
         broker_ptr = self._lib.eda_get_kafka_broker()
         if broker_ptr == ffi.NULL:
             raise RuntimeError("Failed to get Kafka broker")
-        broker = ffi.string(broker_ptr).decode("utf-8")
+        broker = ffi.string(broker_ptr).decode("utf-8")  # type: ignore[union-attr]
         self._lib.eda_free_string(broker_ptr)
 
         # Get topic
         topic_ptr = self._lib.eda_get_kafka_topic()
         if topic_ptr == ffi.NULL:
             raise RuntimeError("Failed to get Kafka topic")
-        topic = ffi.string(topic_ptr).decode("utf-8")
+        topic = ffi.string(topic_ptr).decode("utf-8")  # type: ignore[union-attr]
         self._lib.eda_free_string(topic_ptr)
 
         # Get group
         group_ptr = self._lib.eda_get_kafka_group()
         if group_ptr == ffi.NULL:
             raise RuntimeError("Failed to get Kafka group")
-        group = ffi.string(group_ptr).decode("utf-8")
+        group = ffi.string(group_ptr).decode("utf-8")  # type: ignore[union-attr]
         self._lib.eda_free_string(group_ptr)
 
         return KafkaConfig(broker=broker, topic=topic, group=group)
@@ -65,7 +64,7 @@ class FFICore:
         """
         error_bytes = error.encode("utf-8")
         result = self._lib.eda_should_retry(error_bytes, attempt)
-        return result != 0
+        return bool(result)  # type: ignore[no-any-return]
 
     def calculate_backoff(self, attempt: int) -> int:
         """Calculate backoff duration in milliseconds.
@@ -106,12 +105,12 @@ class FFICore:
             # Extract target string
             if dest_ptr.target == ffi.NULL:
                 raise RuntimeError("Destination target is NULL")
-            target = ffi.string(dest_ptr.target).decode("utf-8")
+            target = ffi.string(dest_ptr.target).decode("utf-8")  # type: ignore[union-attr]
 
             # Extract cluster string (optional)
             cluster: Optional[str] = None
             if dest_ptr.cluster != ffi.NULL:
-                cluster = ffi.string(dest_ptr.cluster).decode("utf-8")
+                cluster = ffi.string(dest_ptr.cluster).decode("utf-8")  # type: ignore[union-attr]
 
             return OutputDestination(type=dest_type, target=target, cluster=cluster)
         finally:

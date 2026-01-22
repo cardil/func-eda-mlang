@@ -1,11 +1,12 @@
 """FFI library loader with embedded library support."""
 
+import atexit
 import os
 import platform
 import shutil
 import tempfile
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from cffi import FFI
 
@@ -15,12 +16,13 @@ ffi = FFI()
 # Path to the bundled header file (copied during build)
 _header_path = Path(__file__).parent / "include" / "eda_core.h"
 
+
 def _load_c_definitions() -> str:
     """Load C definitions from the bundled header file.
-    
+
     Returns:
         C definitions suitable for cffi.cdef().
-        
+
     Raises:
         RuntimeError: If header file not found.
     """
@@ -29,65 +31,66 @@ def _load_c_definitions() -> str:
             f"Header file not found at {_header_path}. "
             f"The SDK package may be corrupted or incomplete."
         )
-    
+
     # Read and parse the header file
-    with open(_header_path, 'r') as f:
+    with open(_header_path, "r") as f:
         content = f.read()
-    
+
     # Extract only the parts we need (between extern "C" blocks)
     # Remove preprocessor directives, comments, and namespace declarations
     lines = []
     in_extern_c = False
     in_struct = False
-    
-    for line in content.split('\n'):
+
+    for line in content.split("\n"):
         stripped = line.strip()
-        
+
         # Skip preprocessor directives and empty lines
-        if stripped.startswith('#') or not stripped:
+        if stripped.startswith("#") or not stripped:
             continue
-            
+
         # Skip single-line comments
-        if stripped.startswith('//'):
+        if stripped.startswith("//"):
             continue
-        
+
         # Track extern "C" blocks
         if 'extern "C"' in stripped:
             in_extern_c = True
             continue
-            
+
         # Track struct definitions
-        if 'typedef struct' in stripped:
+        if "typedef struct" in stripped:
             in_struct = True
             lines.append(line)
             continue
-            
+
         # End of struct
-        if in_struct and '} ' in stripped and ';' in stripped:
+        if in_struct and "} " in stripped and ";" in stripped:
             lines.append(line)
             in_struct = False
             continue
-            
+
         # Inside struct or extern C block
         if in_struct or in_extern_c:
             # Skip closing braces of extern C
-            if stripped == '}' or stripped == '}  // extern "C"':
+            if stripped == "}" or stripped == '}  // extern "C"':
                 if not in_struct:
                     in_extern_c = False
                 continue
             # Skip namespace declarations
-            if 'namespace' in stripped:
+            if "namespace" in stripped:
                 continue
             # Keep the line
             if stripped:
                 lines.append(line)
-    
-    return '\n'.join(lines)
+
+    return "\n".join(lines)
+
 
 ffi.cdef(_load_c_definitions())
 
 # Global library handle
-_lib: Optional[object] = None
+_lib: Any = None
 _temp_dir: Optional[str] = None
 
 
@@ -186,7 +189,7 @@ def extract_embedded_lib() -> str:
     return temp_lib_path
 
 
-def load_library() -> object:
+def load_library() -> Any:
     """Load the FFI library.
 
     Returns:
@@ -221,6 +224,4 @@ def cleanup() -> None:
 
 
 # Register cleanup on exit
-import atexit
-
 atexit.register(cleanup)

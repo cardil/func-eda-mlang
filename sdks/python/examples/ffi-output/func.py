@@ -18,9 +18,9 @@ def handle(event: CloudEvent) -> Optional[CloudEvent]:
     print(f"   Type: {event['type']}")
     print(f"   Source: {event['source']}")
 
-    # Only process events of type "kafka.message"
+    # Only process events of type "eda-mlang-test"
     # Return None for other types (no output event)
-    if event["type"] != "kafka.message":
+    if event["type"] != "eda-mlang-test":
         return None
 
     # Create an output event
