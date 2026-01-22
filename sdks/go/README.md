@@ -5,7 +5,7 @@ Go SDK for building Event-Driven Architecture (EDA) functions with shared Rust c
 ## Features
 
 - **FFI Backend**: Uses cgo to call Rust shared library (`libeda_core.so`)
-- **WASM Backend**: Uses wazero to run Rust WASM module (`eda_wasm.wasm`)
+- **WASM Backend**: Uses wasmtime-go to run Rust WASM module (`eda_wasm.wasm`)
 - **Unified Interface**: Same API regardless of backend
 - **Kafka Integration**: Built-in Kafka consumer with CloudEvents support
 - **Simple API**: Minimal boilerplate for function developers
@@ -113,6 +113,7 @@ make run-go-wasm
 ```go
 import (
     "context"
+    "log"
     "time"
 
     "github.com/openshift-knative/func-eda-mlang/sdks/go/pkg/ffi"
@@ -134,13 +135,21 @@ func main() {
 
 ```go
 import (
+    "context"
+    "log"
+    "os"
+
     "github.com/openshift-knative/func-eda-mlang/sdks/go/pkg/sdk"
     "github.com/openshift-knative/func-eda-mlang/sdks/go/pkg/wasm"
 )
 
 func main() {
     customConstructor := func() (sdk.Core, error) {
-        return wasm.NewCore(context.Background(), "/custom/path/to/module.wasm")
+        wasmBytes, err := os.ReadFile("/custom/path/to/module.wasm")
+        if err != nil {
+            return nil, err
+        }
+        return wasm.NewCore(context.Background(), wasmBytes)
     }
 
     err := wasm.Run(Handle, sdk.WithCoreConstructor(customConstructor))
@@ -169,7 +178,7 @@ func main() {
           ▼                             ▼
 ┌──────────────────┐          ┌──────────────────┐
 │   FFI Backend    │          │  WASM Backend    │
-│   (cgo)          │          │  (wazero)        │
+│   (cgo)          │          │  (wasmtime-go)   │
 └──────────────────┘          └──────────────────┘
           │                             │
           └──────────────┬──────────────┘
@@ -186,7 +195,7 @@ func main() {
 
 - `pkg/sdk/` - Core SDK interfaces and consumer logic
 - `pkg/ffi/` - FFI (cgo) implementation
-- `pkg/wasm/` - WASM (wazero) implementation
+- `pkg/wasm/` - WASM (wasmtime-go) implementation
 - `examples/` - Example functions
 
 ## Testing
