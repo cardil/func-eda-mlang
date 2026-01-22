@@ -10,7 +10,6 @@ documentation = true
 documentation_style = "c99"
 
 [export]
-include = ["eda_"]
 exclude = []
 
 [export.rename]
