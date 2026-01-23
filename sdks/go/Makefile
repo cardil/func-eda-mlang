@@ -9,8 +9,11 @@ EXAMPLES_DIR := examples
 
 # Artifacts
 WASM_COMPONENT := $(BINDINGS_WASM_DIR)/target/wasm32-wasip2/release/eda_wasm.wasm
+FFI_LIB_LINUX := $(CORE_DIR)/target/release/libeda_core.so
+FFI_LIB_DARWIN := $(CORE_DIR)/target/release/libeda_core.dylib
+FFI_LIB_WINDOWS := $(CORE_DIR)/target/release/eda_core.dll
 
-.PHONY: all build test clean check embed-libs
+.PHONY: all build test clean check embed-libs embed-libs-all
 
 all: build  ## Build everything
 
@@ -19,23 +22,28 @@ build: embed-libs generate  ## Build Go SDK
 	CGO_ENABLED=1 go build ./...
 	@echo -e "$(GREEN)$(CHECK) Go SDK built$(RESET)"
 
-embed-libs:  ## Copy FFI libraries to Go SDK for embedding (current platform)
+$(FFI_LIB_LINUX) $(FFI_LIB_DARWIN) $(FFI_LIB_WINDOWS):  ## Build FFI libraries if needed
+	@echo -e "$(BLUE)$(GEAR) Building core FFI library...$(RESET)"
+	@$(MAKE) -C $(CORE_DIR) build
+	@echo -e "$(GREEN)$(CHECK) Core FFI library built$(RESET)"
+
+embed-libs: $(FFI_LIB_LINUX) $(FFI_LIB_DARWIN) $(FFI_LIB_WINDOWS)  ## Copy FFI libraries to Go SDK for embedding (current platform)
 	@echo -e "$(BLUE)$(GEAR) Copying FFI library to Go SDK...$(RESET)"
 	@mkdir -p pkg/ffi/libs/linux_amd64
 	@mkdir -p pkg/ffi/libs/linux_arm64
 	@mkdir -p pkg/ffi/libs/darwin_amd64
 	@mkdir -p pkg/ffi/libs/darwin_arm64
 	@mkdir -p pkg/ffi/libs/windows_amd64
-	@if [ -f $(CORE_DIR)/target/release/libeda_core.so ]; then \
-		cp $(CORE_DIR)/target/release/libeda_core.so pkg/ffi/libs/linux_amd64/; \
+	@if [ -f $(FFI_LIB_LINUX) ]; then \
+		cp $(FFI_LIB_LINUX) pkg/ffi/libs/linux_amd64/; \
 		echo -e "$(GREEN)$(CHECK) Copied libeda_core.so to linux_amd64$(RESET)"; \
 	fi
-	@if [ -f $(CORE_DIR)/target/release/libeda_core.dylib ]; then \
-		cp $(CORE_DIR)/target/release/libeda_core.dylib pkg/ffi/libs/darwin_amd64/; \
+	@if [ -f $(FFI_LIB_DARWIN) ]; then \
+		cp $(FFI_LIB_DARWIN) pkg/ffi/libs/darwin_amd64/; \
 		echo -e "$(GREEN)$(CHECK) Copied libeda_core.dylib to darwin_amd64$(RESET)"; \
 	fi
-	@if [ -f $(CORE_DIR)/target/release/eda_core.dll ]; then \
-		cp $(CORE_DIR)/target/release/eda_core.dll pkg/ffi/libs/windows_amd64/; \
+	@if [ -f $(FFI_LIB_WINDOWS) ]; then \
+		cp $(FFI_LIB_WINDOWS) pkg/ffi/libs/windows_amd64/; \
 		echo -e "$(GREEN)$(CHECK) Copied eda_core.dll to windows_amd64$(RESET)"; \
 	fi
 
@@ -64,6 +72,11 @@ embed-libs-all:  ## Copy all cross-compiled FFI libraries to Go SDK
 	fi
 	@echo -e "$(GREEN)$(ROCKET) All libraries copied to Go SDK$(RESET)"
 
+$(WASM_COMPONENT):  ## Build WASM component if needed
+	@echo -e "$(BLUE)$(GEAR) Building WASM component...$(RESET)"
+	@$(MAKE) -C $(CORE_DIR) build-wasm
+	@echo -e "$(GREEN)$(CHECK) WASM component built$(RESET)"
+
 generate: $(WASM_COMPONENT)  ## Generate Go SDK embedded assets
 	@echo -e "$(BLUE)$(GEAR) Generating Go SDK assets...$(RESET)"
 	go generate ./...
@@ -74,7 +87,7 @@ test: build  ## Run tests
 	CGO_ENABLED=1 go test -v ./...
 	@echo -e "$(GREEN)$(CHECK) Go SDK tests passed$(RESET)"
 
-check:  ## Run linters and formatters
+check: embed-libs generate  ## Run linters and formatters
 	@echo -e "$(BLUE)$(GEAR) Running go fmt...$(RESET)"
 	go fmt ./...
 	@echo -e "$(BLUE)$(GEAR) Running go vet...$(RESET)"
