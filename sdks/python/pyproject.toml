@@ -1,0 +1,65 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eda-sdk"
+version = "0.1.0"
+description = "Python SDK for Event-Driven Architecture (EDA) functions with shared Rust core logic"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
+authors = [
+    {name = "OpenShift Knative Team"}
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "confluent-kafka>=2.3.0",
+    "cloudevents>=1.10.0",
+    "cffi>=1.16.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "mypy>=1.5.0",
+    "ruff>=0.1.0",
+    "types-cffi>=1.17.0",
+]
+wasm = [
+    "wasmtime>=16.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/openshift-knative/func-eda-mlang"
+Repository = "https://github.com/openshift-knative/func-eda-mlang"
+
+[tool.setuptools]
+packages = ["eda_sdk", "eda_sdk.ffi", "eda_sdk.wasm"]
+
+[tool.setuptools.package-data]
+"eda_sdk.ffi" = ["libs/**/*.so", "libs/**/*.dylib", "libs/**/*.dll", "include/*.h"]
+
+[tool.black]
+line-length = 100
+target-version = ['py310']
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true

@@ -1,20 +1,85 @@
 # Build artifacts
 .make/
 .tools/
-core/target/
-bindings/wasm/pkg/
-bindings/wasm/target/
-bindings/ffi/include/
 
 # Rust
+core/target/
+bindings/wasm/target/
+bindings/ffi/include/
+**/target/
 Cargo.lock
 **/*.rs.bk
+
+# Go
+sdks/go/examples/*/ffi-consumer
+sdks/go/examples/*/ffi-output-consumer
+sdks/go/examples/*/wasm-consumer
+sdks/go/pkg/wasm/*.wasm
+sdks/go/pkg/wasm/gen/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+hs_err_pid*
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.eslintcache
 
 # OS-specific
 .DS_Store
 .AppleDouble
 .LSOverride
 ._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
 
 # IDE
 .vscode/
@@ -22,6 +87,10 @@ Cargo.lock
 *.swp
 *.swo
 *~
+*.iml
+.project
+.classpath
+.settings/
 
 # Logs
 *.log

@@ -1,0 +1,197 @@
+package ffi
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"runtime"
+	"sync"
+	"unsafe"
+
+	"github.com/ebitengine/purego"
+)
+
+// COutputDestination matches the C struct from Rust FFI
+type COutputDestination struct {
+	DestType uint32
+	Target   *byte
+	Cluster  *byte
+}
+
+var (
+	// Library handle
+	libHandle uintptr
+
+	// Temp directory for cleanup
+	libTmpDir string
+
+	// Function pointers
+	edaGetKafkaBroker        func() *byte
+	edaGetKafkaTopic         func() *byte
+	edaGetKafkaGroup         func() *byte
+	edaFreeString            func(*byte)
+	edaShouldRetry           func(*byte, uint32) int32
+	edaCalculateBackoff      func(uint32) uint64
+	edaGetOutputDestination  func(*byte) *COutputDestination
+	edaFreeOutputDestination func(*COutputDestination)
+	edaLoadRoutingConfig     func(*byte) bool
+
+	// Ensure library is loaded only once
+	loadOnce sync.Once
+	loadErr  error
+)
+
+// libName returns the platform-specific library name
+func libName() string {
+	switch runtime.GOOS {
+	case "windows":
+		return "eda_core.dll"
+	case "darwin":
+		return "libeda_core.dylib"
+	default:
+		return "libeda_core.so"
+	}
+}
+
+// extractEmbeddedLib extracts the embedded library to a temporary file
+func extractEmbeddedLib() (string, error) {
+	// Create a temporary directory
+	tmpDir, err := os.MkdirTemp("", "eda-core-*")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp directory: %w", err)
+	}
+
+	// Write the embedded library to the temp directory
+	libPath := filepath.Join(tmpDir, libName())
+	if err := os.WriteFile(libPath, embeddedLib, 0755); err != nil {
+		os.RemoveAll(tmpDir)
+		return "", fmt.Errorf("failed to write library to temp file: %w", err)
+	}
+
+	// Save tmpDir for cleanup
+	libTmpDir = tmpDir
+
+	return libPath, nil
+}
+
+// CleanupLibrary removes the temporary library files.
+// This should be called on application shutdown if cleanup is desired.
+// Note: The library will remain loaded in memory even after cleanup.
+func CleanupLibrary() error {
+	if libTmpDir != "" {
+		err := os.RemoveAll(libTmpDir)
+		libTmpDir = ""
+		return err
+	}
+	return nil
+}
+
+// loadLibrary loads the embedded FFI library and registers all functions
+func loadLibrary() error {
+	var err error
+	loadOnce.Do(func() {
+		// Extract embedded library to temp file
+		libPath, extractErr := extractEmbeddedLib()
+		if extractErr != nil {
+			err = fmt.Errorf("failed to extract embedded library: %w", extractErr)
+			return
+		}
+
+		// Load the library
+		var openErr error
+		libHandle, openErr = purego.Dlopen(libPath, purego.RTLD_NOW|purego.RTLD_GLOBAL)
+		if openErr != nil {
+			err = fmt.Errorf("failed to load library from %s: %w", libPath, openErr)
+			return
+		}
+
+		// Register all FFI functions
+		if err = registerFunctions(); err != nil {
+			err = fmt.Errorf("failed to register functions: %w", err)
+			return
+		}
+
+		loadErr = nil
+	})
+
+	if err != nil {
+		loadErr = err
+		return err
+	}
+
+	return loadErr
+}
+
+// registerFunctions registers all C function pointers using purego
+func registerFunctions() error {
+	// Helper to safely register a function symbol
+	registerFunc := func(fn interface{}, name string) error {
+		addr, err := purego.Dlsym(libHandle, name)
+		if err != nil {
+			return fmt.Errorf("failed to find symbol %s: %w", name, err)
+		}
+		if addr == 0 {
+			return fmt.Errorf("symbol %s not found (address is 0)", name)
+		}
+		purego.RegisterFunc(fn, addr)
+		return nil
+	}
+
+	// Register all FFI functions
+	if err := registerFunc(&edaGetKafkaBroker, "eda_get_kafka_broker"); err != nil {
+		return err
+	}
+	if err := registerFunc(&edaGetKafkaTopic, "eda_get_kafka_topic"); err != nil {
+		return err
+	}
+	if err := registerFunc(&edaGetKafkaGroup, "eda_get_kafka_group"); err != nil {
+		return err
+	}
+	if err := registerFunc(&edaFreeString, "eda_free_string"); err != nil {
+		return err
+	}
+	if err := registerFunc(&edaShouldRetry, "eda_should_retry"); err != nil {
+		return err
+	}
+	if err := registerFunc(&edaCalculateBackoff, "eda_calculate_backoff"); err != nil {
+		return err
+	}
+	if err := registerFunc(&edaGetOutputDestination, "eda_get_output_destination"); err != nil {
+		return err
+	}
+	if err := registerFunc(&edaFreeOutputDestination, "eda_free_output_destination"); err != nil {
+		return err
+	}
+	if err := registerFunc(&edaLoadRoutingConfig, "eda_load_routing_config"); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// cStringWithBuf converts a Go string to a C string (null-terminated byte array).
+// Returns both the pointer and the backing slice. The caller must keep the slice
+// alive (e.g., with runtime.KeepAlive) until the C function completes to prevent
+// garbage collection.
+func cStringWithBuf(s string) (*byte, []byte) {
+	b := append([]byte(s), 0)
+	return &b[0], b
+}
+
+// goString converts a C string pointer to a Go string
+func goString(cstr *byte) string {
+	if cstr == nil {
+		return ""
+	}
+
+	var length int
+	for {
+		ptr := (*byte)(unsafe.Add(unsafe.Pointer(cstr), length))
+		if *ptr == 0 {
+			break
+		}
+		length++
+	}
+
+	return string(unsafe.Slice(cstr, length))
+}

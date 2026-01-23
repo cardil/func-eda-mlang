@@ -1,0 +1,90 @@
+package eda:core@0.1.0;
+
+interface types {
+    record kafka-config {
+        broker: string,
+        topic: string,
+        group-id: string,
+    }
+    
+    enum error-category {
+        transient,
+        permanent,
+        unknown,
+    }
+    
+    record retry-decision {
+        should-retry: bool,
+        backoff-ms: u64,
+        send-to-dlq: bool,
+    }
+    
+    enum destination-type {
+        kafka,
+        rabbitmq,
+        http,
+        discard,
+    }
+    
+    record output-destination {
+        dest-type: destination-type,
+        target: string,
+        cluster: option<string>,
+    }
+    
+    /// Filter expression following CloudEvents Subscriptions API format
+    /// Serialized as JSON to support nested filter structures
+    /// See: https://github.com/cloudevents/spec/blob/main/subscriptions/spec.md#324-filters
+    type filter-expression = string;
+    
+    record routing-rule {
+        name: string,
+        filter: filter-expression,
+        destination: output-destination,
+    }
+}
+
+interface config {
+    use types.{kafka-config};
+    get-kafka-config: func() -> kafka-config;
+}
+
+interface retry {
+    use types.{error-category, retry-decision};
+    classify-error: func(error-message: string) -> error-category;
+    get-retry-decision: func(error-category: error-category, attempt: u32, max-attempts: u32) -> retry-decision;
+}
+
+interface routing {
+    use types.{output-destination, routing-rule};
+    
+    /// Evaluate routing rules against an event and return the destination
+    /// The event-json parameter contains the serialized CloudEvent
+    get-output-destination: func(event-json: string) -> output-destination;
+    
+    /// Add a routing rule
+    add-routing-rule: func(rule: routing-rule);
+    
+    /// Clear all routing rules
+    clear-routing-rules: func();
+    
+    /// Get the default destination used when no rule matches
+    get-default-destination: func() -> output-destination;
+    
+    /// Set the default destination for unmatched events
+    set-default-destination: func(dest: output-destination);
+}
+
+interface telemetry {
+    record-event-received: func(event-type: string);
+    record-event-processed: func(event-type: string, success: bool, duration-ms: u64);
+    record-retry-attempt: func(attempt: u32, backoff-ms: u64);
+    get-event-count: func() -> u64;
+}
+
+world eda-core {
+    export config;
+    export retry;
+    export routing;
+    export telemetry;
+}

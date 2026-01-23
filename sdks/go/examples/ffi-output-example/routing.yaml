@@ -1,0 +1,28 @@
+# Routing configuration for output events
+# This configuration routes processed events to a separate topic to avoid endless loops
+
+routing:
+  # Default destination when no rule matches
+  default:
+    type: kafka
+    target: events
+    cluster: default
+  
+  rules:
+    # Route processed events to a separate topic
+    - name: processed-events
+      filter:
+        exact:
+          type: "com.example.processed"
+      destination:
+        type: kafka
+        target: processed-events
+        cluster: default
+    
+    # Discard internal events to avoid loops
+    - name: discard-internal
+      filter:
+        suffix:
+          type: ".internal"
+      destination:
+        type: discard
