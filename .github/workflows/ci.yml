@@ -93,5 +93,10 @@ jobs:
       with:
         python-version: '3.12'
     
+    - name: Start Podman
+      run: |
+        systemctl --user start podman.socket
+        systemctl --user enable podman.socket
+    
     - name: Run e2e tests
       run: make e2e
