@@ -22,6 +22,9 @@ var (
 	// Library handle
 	libHandle uintptr
 
+	// Temp directory for cleanup
+	libTmpDir string
+
 	// Function pointers
 	edaGetKafkaBroker        func() *byte
 	edaGetKafkaTopic         func() *byte
@@ -65,7 +68,22 @@ func extractEmbeddedLib() (string, error) {
 		return "", fmt.Errorf("failed to write library to temp file: %w", err)
 	}
 
+	// Save tmpDir for cleanup
+	libTmpDir = tmpDir
+
 	return libPath, nil
+}
+
+// CleanupLibrary removes the temporary library files.
+// This should be called on application shutdown if cleanup is desired.
+// Note: The library will remain loaded in memory even after cleanup.
+func CleanupLibrary() error {
+	if libTmpDir != "" {
+		err := os.RemoveAll(libTmpDir)
+		libTmpDir = ""
+		return err
+	}
+	return nil
 }
 
 // loadLibrary loads the embedded FFI library and registers all functions

@@ -1,6 +1,6 @@
 services:
   redpanda:
-    image: docker.redpanda.com/redpandadata/redpanda:latest
+    image: docker.redpanda.com/redpandadata/redpanda:v25.3.4
     container_name: redpanda
     command:
       - redpanda
@@ -24,7 +24,7 @@ services:
       - redpanda-network
 
   console:
-    image: docker.redpanda.com/redpandadata/console:latest
+    image: docker.redpanda.com/redpandadata/console:v3.5.0
     container_name: redpanda-console
     entrypoint: /bin/sh
     command: -c 'echo "$$CONSOLE_CONFIG_FILE" > /tmp/config.yml; /app/console'

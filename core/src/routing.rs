@@ -271,6 +271,9 @@ pub fn load_routing_config(file_path: &str) -> Result<(), String> {
     let config: RoutingConfig = serde_yaml::from_str(&yaml_content)
         .map_err(|e| format!("Failed to parse routing config YAML: {}", e))?;
 
+    // Clear existing routing state before applying new config
+    clear_routing_rules();
+
     // Set default destination if provided
     if let Some(default_config) = config.routing.default {
         let dest_type = parse_destination_type(&default_config.dest_type);

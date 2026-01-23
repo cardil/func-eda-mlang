@@ -1,11 +1,10 @@
 """Kafka consumer with CloudEvents support."""
 
-import json
 import logging
 from typing import Callable, Optional, Union
 
 from cloudevents.http import CloudEvent
-from cloudevents.kafka import KafkaMessage, from_binary, from_structured
+from cloudevents.kafka import KafkaMessage, from_binary, from_structured, to_structured
 from confluent_kafka import Consumer as KafkaConsumer, KafkaError, KafkaException, Message, Producer
 
 from .core import Core
@@ -225,21 +224,13 @@ class Consumer:
         if self._producer is None:
             raise RuntimeError("Producer not initialized")
 
-        # Serialize event to JSON for routing
-        event_dict = {
-            "specversion": event["specversion"],
-            "type": event["type"],
-            "source": event["source"],
-            "id": event["id"],
-        }
-        if "time" in event:
-            event_dict["time"] = event["time"]
-        if "datacontenttype" in event:
-            event_dict["datacontenttype"] = event["datacontenttype"]
-        if "data" in event:
-            event_dict["data"] = event["data"]
-
-        event_json = json.dumps(event_dict)
+        # Serialize complete event (attributes + extensions) for routing
+        kafka_msg = to_structured(event)
+        event_json = (
+            kafka_msg.value.decode("utf-8")
+            if isinstance(kafka_msg.value, bytes)
+            else kafka_msg.value
+        )
 
         # Get output destination from core routing
         dest = self.core.get_output_destination(event_json)
@@ -279,21 +270,13 @@ class Consumer:
         if self._producer is None:
             raise RuntimeError("Producer not initialized")
 
-        # Serialize event to JSON
-        event_dict = {
-            "specversion": event["specversion"],
-            "type": event["type"],
-            "source": event["source"],
-            "id": event["id"],
-        }
-        if "time" in event:
-            event_dict["time"] = event["time"]
-        if "datacontenttype" in event:
-            event_dict["datacontenttype"] = event["datacontenttype"]
-        if "data" in event:
-            event_dict["data"] = event["data"]
-
-        event_json = json.dumps(event_dict).encode("utf-8")
+        # Serialize complete event (attributes + extensions) using CloudEvents SDK
+        kafka_msg = to_structured(event)
+        event_json = (
+            kafka_msg.value
+            if isinstance(kafka_msg.value, bytes)
+            else kafka_msg.value.encode("utf-8")
+        )
 
         # Produce to Kafka
         self._producer.produce(
