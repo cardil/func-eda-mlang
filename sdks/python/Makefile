@@ -62,9 +62,8 @@ test: build  ## Run tests
 	$(PYTHON) -m pytest tests/ -v
 	@echo -e "$(GREEN)$(CHECK) Tests passed$(RESET)"
 
-check: $(VENV)  ## Run linters and formatters
+check: install  ## Run linters and formatters
 	@echo -e "$(BLUE)$(GEAR) Running black...$(RESET)"
-	$(PIP) install black ruff mypy 2>/dev/null || true
 	$(VENV)/bin/black --check eda_sdk/
 	@echo -e "$(BLUE)$(GEAR) Running ruff...$(RESET)"
 	$(VENV)/bin/ruff check eda_sdk/

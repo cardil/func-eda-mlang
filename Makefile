@@ -46,9 +46,9 @@ test:  ## Run all unit tests
 	@$(MAKE) -C sdks/python test
 	@echo -e "$(GREEN)$(CHECK) All tests passed$(RESET)"
 
-e2e:  ## Run end-to-end tests
+e2e: build  ## Run end-to-end tests
 	@echo -e "$(BLUE)$(GEAR) Running e2e tests...$(RESET)"
-	@cd sdks/python && . .venv/bin/activate && cd ../.. && pytest tests/e2e -m e2e
+	@sdks/python/.venv/bin/pytest tests/e2e
 	@echo -e "$(GREEN)$(CHECK) E2E tests passed$(RESET)"
 
 run:  ## Run an example (interactive selection)
