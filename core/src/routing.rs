@@ -350,11 +350,25 @@ pub extern "C" fn eda_get_output_destination(event_json: *const c_char) -> *mut 
         DestinationType::Discard => 3,
     };
 
-    let target = CString::new(dest.target).unwrap().into_raw();
-    let cluster = dest
-        .cluster
-        .map(|c| CString::new(c).unwrap().into_raw())
-        .unwrap_or(std::ptr::null_mut());
+    // Handle CString creation gracefully - return null on error
+    let target = match CString::new(dest.target) {
+        Ok(c) => c.into_raw(),
+        Err(_) => return std::ptr::null_mut(),
+    };
+
+    let cluster = match dest.cluster {
+        Some(c) => match CString::new(c) {
+            Ok(cstr) => cstr.into_raw(),
+            Err(_) => {
+                // Free target before returning
+                unsafe {
+                    let _ = CString::from_raw(target);
+                }
+                return std::ptr::null_mut();
+            }
+        },
+        None => std::ptr::null_mut(),
+    };
 
     Box::into_raw(Box::new(COutputDestination {
         dest_type,

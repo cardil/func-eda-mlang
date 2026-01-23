@@ -106,32 +106,47 @@ func loadLibrary() error {
 
 // registerFunctions registers all C function pointers using purego
 func registerFunctions() error {
-	// Register eda_get_kafka_broker
-	purego.RegisterLibFunc(&edaGetKafkaBroker, libHandle, "eda_get_kafka_broker")
+	// Helper to safely register a function symbol
+	registerFunc := func(fn interface{}, name string) error {
+		addr, err := purego.Dlsym(libHandle, name)
+		if err != nil {
+			return fmt.Errorf("failed to find symbol %s: %w", name, err)
+		}
+		if addr == 0 {
+			return fmt.Errorf("symbol %s not found (address is 0)", name)
+		}
+		purego.RegisterFunc(fn, addr)
+		return nil
+	}
 
-	// Register eda_get_kafka_topic
-	purego.RegisterLibFunc(&edaGetKafkaTopic, libHandle, "eda_get_kafka_topic")
-
-	// Register eda_get_kafka_group
-	purego.RegisterLibFunc(&edaGetKafkaGroup, libHandle, "eda_get_kafka_group")
-
-	// Register eda_free_string
-	purego.RegisterLibFunc(&edaFreeString, libHandle, "eda_free_string")
-
-	// Register eda_should_retry
-	purego.RegisterLibFunc(&edaShouldRetry, libHandle, "eda_should_retry")
-
-	// Register eda_calculate_backoff
-	purego.RegisterLibFunc(&edaCalculateBackoff, libHandle, "eda_calculate_backoff")
-
-	// Register eda_get_output_destination
-	purego.RegisterLibFunc(&edaGetOutputDestination, libHandle, "eda_get_output_destination")
-
-	// Register eda_free_output_destination
-	purego.RegisterLibFunc(&edaFreeOutputDestination, libHandle, "eda_free_output_destination")
-
-	// Register eda_load_routing_config
-	purego.RegisterLibFunc(&edaLoadRoutingConfig, libHandle, "eda_load_routing_config")
+	// Register all FFI functions
+	if err := registerFunc(&edaGetKafkaBroker, "eda_get_kafka_broker"); err != nil {
+		return err
+	}
+	if err := registerFunc(&edaGetKafkaTopic, "eda_get_kafka_topic"); err != nil {
+		return err
+	}
+	if err := registerFunc(&edaGetKafkaGroup, "eda_get_kafka_group"); err != nil {
+		return err
+	}
+	if err := registerFunc(&edaFreeString, "eda_free_string"); err != nil {
+		return err
+	}
+	if err := registerFunc(&edaShouldRetry, "eda_should_retry"); err != nil {
+		return err
+	}
+	if err := registerFunc(&edaCalculateBackoff, "eda_calculate_backoff"); err != nil {
+		return err
+	}
+	if err := registerFunc(&edaGetOutputDestination, "eda_get_output_destination"); err != nil {
+		return err
+	}
+	if err := registerFunc(&edaFreeOutputDestination, "eda_free_output_destination"); err != nil {
+		return err
+	}
+	if err := registerFunc(&edaLoadRoutingConfig, "eda_load_routing_config"); err != nil {
+		return err
+	}
 
 	return nil
 }
