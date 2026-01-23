@@ -136,10 +136,13 @@ func registerFunctions() error {
 	return nil
 }
 
-// cString converts a Go string to a C string (null-terminated byte array)
-func cString(s string) *byte {
+// cStringWithBuf converts a Go string to a C string (null-terminated byte array).
+// Returns both the pointer and the backing slice. The caller must keep the slice
+// alive (e.g., with runtime.KeepAlive) until the C function completes to prevent
+// garbage collection.
+func cStringWithBuf(s string) (*byte, []byte) {
 	b := append([]byte(s), 0)
-	return &b[0]
+	return &b[0], b
 }
 
 // goString converts a C string pointer to a Go string

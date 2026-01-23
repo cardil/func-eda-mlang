@@ -2,6 +2,7 @@ package ffi
 
 import (
 	"fmt"
+	"runtime"
 
 	"github.com/openshift-knative/func-eda-mlang/sdks/go/pkg/sdk"
 )
@@ -53,8 +54,9 @@ func (c *Core) GetKafkaConfig() (*sdk.KafkaConfig, error) {
 
 // ShouldRetry checks if an error should be retried
 func (c *Core) ShouldRetry(error string, attempt uint32) (bool, error) {
-	cError := cString(error)
+	cError, buf := cStringWithBuf(error)
 	result := edaShouldRetry(cError, attempt)
+	runtime.KeepAlive(buf)
 	return result != 0, nil
 }
 
@@ -66,8 +68,9 @@ func (c *Core) CalculateBackoff(attempt uint32) (uint64, error) {
 
 // GetOutputDestination routes an output event to its destination
 func (c *Core) GetOutputDestination(eventJSON string) (*sdk.OutputDestination, error) {
-	cEventJSON := cString(eventJSON)
+	cEventJSON, buf := cStringWithBuf(eventJSON)
 	cDest := edaGetOutputDestination(cEventJSON)
+	runtime.KeepAlive(buf)
 	if cDest == nil {
 		return nil, fmt.Errorf("failed to get output destination")
 	}
@@ -94,8 +97,9 @@ func (c *Core) GetOutputDestination(eventJSON string) (*sdk.OutputDestination, e
 
 // LoadRoutingConfig loads routing configuration from a YAML file
 func (c *Core) LoadRoutingConfig(filePath string) error {
-	cPath := cString(filePath)
+	cPath, buf := cStringWithBuf(filePath)
 	success := edaLoadRoutingConfig(cPath)
+	runtime.KeepAlive(buf)
 	if !success {
 		return fmt.Errorf("failed to load routing config from %s", filePath)
 	}
