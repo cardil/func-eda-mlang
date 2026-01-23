@@ -46,13 +46,13 @@ class Consumer:
             extra={"broker": config.broker, "topic": config.topic, "group": config.group},
         )
 
-        # Create Kafka consumer
+        # Create Kafka consumer with manual commit for at-least-once delivery
         self._consumer = KafkaConsumer(
             {
                 "bootstrap.servers": config.broker,
                 "group.id": config.group,
                 "auto.offset.reset": "earliest",
-                "enable.auto.commit": True,
+                "enable.auto.commit": False,  # Manual commit after successful processing
             }
         )
 
@@ -127,6 +127,9 @@ class Consumer:
                 # Call user handler
                 try:
                     self._invoke_handler(event)
+                    # Commit offset after successful processing
+                    if self._consumer is not None:
+                        self._consumer.commit(asynchronous=False)
                 except Exception as e:
                     logger.error(f"Handler error: {e}", extra={"event_type": event["type"]})
 
@@ -151,8 +154,8 @@ class Consumer:
         """Convert Kafka message to CloudEvent.
 
         Tries multiple parsing strategies in order:
-        1. Structured mode: CloudEvent attributes in Kafka headers, data in body
-        2. Binary mode: Full CloudEvent as JSON in Kafka value (both CE fields and data)
+        1. Structured mode: Full CloudEvent as JSON in Kafka value (content-type in headers)
+        2. Binary mode: CloudEvent attributes in Kafka headers, data in body
 
         Args:
             msg: Kafka message.
@@ -278,11 +281,17 @@ class Consumer:
             else kafka_msg.value.encode("utf-8")
         )
 
+        # Preserve CloudEvents headers (e.g., content-type: application/cloudevents+json)
+        headers: list[tuple[str, str | bytes | None]] | None = (
+            [(k, v) for k, v in kafka_msg.headers.items()] if kafka_msg.headers else None
+        )
+
         # Produce to Kafka
         self._producer.produce(
             topic=topic,
             value=event_json,
             key=event["id"].encode("utf-8"),
+            headers=headers,
         )
         self._producer.flush()
 

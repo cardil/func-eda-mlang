@@ -273,6 +273,10 @@ pub fn load_routing_config(file_path: &str) -> Result<(), String> {
 
     // Clear existing routing state before applying new config
     clear_routing_rules();
+    {
+        let mut default = DEFAULT_DESTINATION.write().unwrap();
+        *default = None;
+    }
 
     // Set default destination if provided
     if let Some(default_config) = config.routing.default {
