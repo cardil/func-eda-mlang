@@ -268,7 +268,7 @@ pub fn load_routing_config(file_path: &str) -> Result<(), String> {
         .map_err(|e| format!("Failed to read routing config file: {}", e))?;
 
     // Parse YAML
-    let config: RoutingConfig = serde_yaml::from_str(&yaml_content)
+    let config: RoutingConfig = serde_yaml_ng::from_str(&yaml_content)
         .map_err(|e| format!("Failed to parse routing config YAML: {}", e))?;
 
     // Clear existing routing state before applying new config
