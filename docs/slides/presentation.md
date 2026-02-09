@@ -1,6 +1,6 @@
 <!-- .slide: class="title-slide" -->
 # Multi-Lang EDA SDK
-## Proof of Concept
+## PoC for Func 2.0
 
 <div class="author">Chris Suszyński</div>
 
