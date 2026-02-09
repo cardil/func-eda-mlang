@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Multi-Language EDA SDK: FFI & WASI PoC</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reset.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/white.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/monokai.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@400;700&family=Red+Hat+Text&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --r-main-font: 'Red Hat Display', sans-serif;
+      --r-heading-font: 'Red Hat Display', sans-serif;
+      --r-main-color: #151515;
+      --r-heading-color: #151515;
+      --r-link-color: #EE0000;
+      --rh-red: #EE0000;
+    }
+    .reveal h1 {
+      color: var(--rh-red);
+      font-size: 1.8em;
+      text-transform: none;
+    }
+    .reveal h2 {
+      color: #6A6E73;
+      font-size: 0.9em;
+      font-style: italic;
+      margin-top: -0.3em;
+      text-transform: none;
+    }
+    .reveal .title-slide h1 {
+      font-size: 2em;
+      text-transform: uppercase;
+      color: #EE0000;
+    }
+    .reveal .title-slide h2 {
+      font-style: normal;
+      font-size: 1em;
+      color: #6A6E73;
+    }
+    .reveal .title-slide .author {
+      margin-top: 4em;
+      font-size: 0.7em;
+      color: #6A6E73;
+    }
+    .reveal .end-slide h1 {
+      font-size: 2.5em;
+      margin-bottom: 0.2em;
+    }
+    .reveal .end-slide h2 {
+      font-size: 1.3em;
+      color: rgba(255,255,255,0.9);
+      font-style: normal;
+    }
+    .reveal .demo-slide h1 {
+      font-size: 3em;
+    }
+    .reveal ul { font-size: 1em; }
+    .reveal li { margin-bottom: 0.4em; }
+    .reveal table {
+      margin: 0 auto;
+      font-size: 0.7em;
+    }
+    .reveal th {
+      background: var(--rh-red);
+      color: #fff;
+      padding: 0.4em 0.8em;
+    }
+    .reveal td {
+      padding: 0.4em 0.8em;
+      border-bottom: 1px solid #ddd;
+    }
+    .reveal pre code {
+      max-height: 500px;
+      font-size: 0.8em;
+    }
+    /* Red slide overrides */
+    .reveal section[data-background-color="#EE0000"] h1,
+    .reveal section[data-background-color="#EE0000"] h2 {
+      color: #fff;
+    }
+    .reveal section[data-background-color="#EE0000"] h2 {
+      opacity: 0.9;
+    }
+    /* Dark slide overrides */
+    .reveal section[data-background-color="#151515"] {
+      color: #fff;
+    }
+    .reveal section[data-background-color="#151515"] h1 {
+      color: #fff;
+    }
+    .reveal section[data-background-color="#151515"] h2 {
+      color: rgba(255,255,255,0.7);
+    }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+      <section data-markdown="presentation.md"
+               data-separator="^\n---\n$"
+               data-separator-vertical="^\n--\n$"
+               data-separator-notes="^Notes:">
+      </section>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/markdown/markdown.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/highlight.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/notes/notes.js"></script>
+  <script>
+    Reveal.initialize({
+      hash: true,
+      plugins: [RevealMarkdown, RevealHighlight, RevealNotes],
+      transition: 'slide',
+      backgroundTransition: 'fade'
+    });
+  </script>
+</body>
+</html>
+
